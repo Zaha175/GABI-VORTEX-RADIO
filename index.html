@@ -1,0 +1,1419 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TELEIOSΦGABI VORTEX-PASSAGE</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjs@11.8.0/lib/browser/math.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        void: '#000025',
+                        drift: '#3B82F6',
+                        plasma: '#EC4899',
+                        spin: '#F59E0B',
+                        primary: '#5D5CDE',
+                        phi: '#D4AF37',
+                        zen: '#10B981'
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'float': 'float 6s ease-in-out infinite',
+                        'spin-slow': 'spin 15s linear infinite',
+                        'glow-pulse': 'glowPulse 3s ease-in-out infinite alternate',
+                    },
+                    keyframes: {
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-10px)' },
+                        },
+                        glowPulse: {
+                            '0%': { filter: 'drop-shadow(0 0 5px rgba(212, 175, 55, 0.4))' },
+                            '100%': { filter: 'drop-shadow(0 0 20px rgba(93, 92, 222, 0.8))' }
+                        }
+                    }
+                }
+            }
+        }
+        
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark');
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+        
+        body, html {
+            font-family: 'Space Grotesk', sans-serif;
+            overflow-x: hidden;
+            background-color: #000025;
+            color: #fff;
+        }
+        
+        .cosmic-shadow {
+            box-shadow: 0 4px 25px rgba(93, 92, 222, 0.25);
+        }
+        
+        .phi-pulse {
+            position: relative;
+        }
+        
+        .phi-pulse::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 100%;
+            height: 100%;
+            transform: translate(-50%, -50%);
+            background: radial-gradient(circle, rgba(212, 175, 55, 0.5) 0%, rgba(0, 0, 37, 0) 70%);
+            border-radius: 50%;
+            opacity: 0.7;
+            animation: phi-pulse 4s infinite;
+        }
+        
+        @keyframes phi-pulse {
+            0%, 100% { 
+                opacity: 0.3;
+                transform: translate(-50%, -50%) scale(1);
+            }
+            50% { 
+                opacity: 0.8;
+                transform: translate(-50%, -50%) scale(1.25);
+            }
+        }
+        
+        canvas {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .vortex-container {
+            position: relative;
+            overflow: hidden;
+            border-radius: 1rem;
+            border: 2px solid #5D5CDE;
+            box-shadow: 0 0 35px rgba(93, 92, 222, 0.35);
+        }
+
+        .zen-glow {
+            box-shadow: 0 0 35px rgba(16, 185, 129, 0.4);
+            border-color: #10B981;
+        }
+        
+        #particleCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        /* Custom scrollbars */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #000025;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #5D5CDE;
+            border-radius: 3px;
+        }
+
+        /* RADIO BRONTOS · eigenständiges Live-Modul */
+        .brontos-radio {
+            position: fixed;
+            right: 18px;
+            bottom: 18px;
+            z-index: 80;
+            width: min(360px, calc(100vw - 28px));
+            color: #f8fafc;
+            background: linear-gradient(145deg, rgba(5, 12, 31, 0.96), rgba(20, 15, 43, 0.96));
+            border: 1px solid rgba(212, 175, 55, 0.55);
+            border-radius: 18px;
+            box-shadow: 0 18px 55px rgba(0, 0, 0, 0.55), 0 0 30px rgba(93, 92, 222, 0.25);
+            backdrop-filter: blur(16px);
+            overflow: hidden;
+            transition: width .25s ease, transform .25s ease, opacity .25s ease;
+        }
+
+        .brontos-radio.is-collapsed {
+            width: 210px;
+        }
+
+        .brontos-radio.is-collapsed .radio-body {
+            display: none;
+        }
+
+        .radio-head {
+            min-height: 48px;
+            padding: 10px 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+        }
+
+        .radio-brand {
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: .08em;
+            white-space: nowrap;
+        }
+
+        .radio-brand strong { color: #f6c945; }
+
+        .radio-live {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            color: #6ee7b7;
+            font-size: 9px;
+            letter-spacing: .07em;
+        }
+
+        .radio-live::before {
+            content: '';
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #10b981;
+            box-shadow: 0 0 11px #10b981;
+        }
+
+        .radio-collapse {
+            width: 29px;
+            height: 29px;
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            border-radius: 9px;
+            color: #cbd5e1;
+            background: rgba(255, 255, 255, 0.05);
+            cursor: pointer;
+        }
+
+        .radio-body { padding: 12px; }
+
+        .radio-row {
+            display: grid;
+            grid-template-columns: 46px 24px 1fr 42px;
+            gap: 9px;
+            align-items: center;
+        }
+
+        .radio-play {
+            width: 46px;
+            height: 46px;
+            border: 0;
+            border-radius: 50%;
+            background: linear-gradient(145deg, #f8d760, #f59e0b);
+            color: #17120a;
+            font-size: 18px;
+            font-weight: 900;
+            cursor: pointer;
+            box-shadow: 0 0 22px rgba(245, 158, 11, .35);
+            transition: transform .18s ease;
+        }
+
+        .radio-play:hover { transform: scale(1.05); }
+
+        .radio-volume-icon {
+            color: #cbd5e1;
+            font-size: 16px;
+            text-align: center;
+        }
+
+        .radio-volume {
+            width: 100%;
+            accent-color: #f6c945;
+            cursor: pointer;
+        }
+
+        .radio-percent {
+            color: #94a3b8;
+            font: 11px/1 monospace;
+            text-align: right;
+        }
+
+        .radio-bars {
+            height: 30px;
+            margin: 10px 0 8px;
+            display: flex;
+            align-items: end;
+            gap: 3px;
+            opacity: .45;
+        }
+
+        .radio-bars span {
+            flex: 1;
+            min-width: 3px;
+            height: var(--h);
+            border-radius: 3px 3px 1px 1px;
+            background: linear-gradient(to top, #10b981, #f6c945);
+            transform-origin: bottom;
+        }
+
+        .brontos-radio.is-playing .radio-bars { opacity: 1; }
+
+        .brontos-radio.is-playing .radio-bars span {
+            animation: radioDance .75s ease-in-out infinite alternate;
+            animation-delay: var(--d);
+        }
+
+        @keyframes radioDance {
+            from { transform: scaleY(.32); }
+            to { transform: scaleY(1); }
+        }
+
+        .radio-foot {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            color: #64748b;
+            font-size: 9px;
+        }
+
+        .radio-status { color: #94a3b8; }
+        .radio-status.ok { color: #6ee7b7; }
+        .radio-status.error { color: #fda4af; }
+
+        .radio-external {
+            color: #d4af37;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+
+        .radio-external:hover { color: #fde68a; }
+
+        @media (max-width: 640px) {
+            .brontos-radio { right: 10px; bottom: 10px; }
+        }
+    </style>
+</head>
+<body class="min-h-screen text-gray-100">
+    <canvas id="particleCanvas"></canvas>
+
+    <!-- RADIO BRONTOS bleibt unabhängig von TELEIOS-Frequenz und Vortex-Steuerung -->
+    <aside class="brontos-radio" id="brontosRadio" aria-label="Radio BRONTOS mit Radio ZU">
+        <div class="radio-head">
+            <div class="radio-brand">
+                <span>🦕</span>
+                <span>RADIO BRONTOS · <strong>ZU</strong></span>
+                <span class="radio-live">LIVE</span>
+            </div>
+            <button class="radio-collapse" id="radioCollapse" type="button" aria-label="Radio einklappen" title="Radio einklappen">−</button>
+        </div>
+        <div class="radio-body">
+            <div class="radio-row">
+                <button class="radio-play" id="radioPlay" type="button" aria-label="Radio starten">▶</button>
+                <div class="radio-volume-icon" aria-hidden="true">🔊</div>
+                <input class="radio-volume" id="radioVolume" type="range" min="0" max="100" value="68" aria-label="Lautstärke">
+                <div class="radio-percent" id="radioPercent">68%</div>
+            </div>
+            <div class="radio-bars" aria-hidden="true">
+                <span style="--h:42%;--d:-.1s"></span><span style="--h:78%;--d:-.5s"></span>
+                <span style="--h:58%;--d:-.2s"></span><span style="--h:92%;--d:-.7s"></span>
+                <span style="--h:66%;--d:-.35s"></span><span style="--h:48%;--d:-.6s"></span>
+                <span style="--h:84%;--d:-.15s"></span><span style="--h:55%;--d:-.45s"></span>
+                <span style="--h:72%;--d:-.25s"></span><span style="--h:38%;--d:-.65s"></span>
+                <span style="--h:88%;--d:-.3s"></span><span style="--h:62%;--d:-.55s"></span>
+                <span style="--h:46%;--d:-.05s"></span><span style="--h:76%;--d:-.4s"></span>
+            </div>
+            <div class="radio-foot">
+                <span class="radio-status" id="radioStatus">Bereit · zum Starten drücken</span>
+                <a class="radio-external" href="https://radiozu.ro/" target="_blank" rel="noopener noreferrer">Radio ZU ↗</a>
+            </div>
+            <audio id="radioAudio" preload="none" crossorigin="anonymous"></audio>
+        </div>
+    </aside>
+    
+    <div class="container mx-auto px-4 py-8 relative z-10 max-w-7xl">
+        <header class="text-center mb-8">
+            <div class="mb-2 text-5xl text-phi font-light relative inline-block phi-pulse">
+                Φ
+            </div>
+            <h1 class="text-3xl md:text-5xl font-bold relative inline-block">
+                <span class="bg-clip-text text-transparent bg-gradient-to-r from-drift via-primary to-phi">TELEIOSΦGABI VORTEX-PASSAGE</span>
+            </h1>
+            <p class="text-gray-400 mt-2 max-w-3xl mx-auto text-sm md:text-base">
+                Harmonische 41.36 Hz GABI-Resonanz · Zen-Entspannungs-Modus & Leuchtende Kerr-Nodes
+            </p>
+        </header>
+        
+        <!-- Main 3D Vortex Viewport (Full Width Top) -->
+        <div class="bg-gray-800/30 rounded-2xl p-4 cosmic-shadow border border-gray-700/50 mb-8 transition-all duration-500" id="vortexCard">
+            <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
+                <div class="flex items-center gap-3">
+                    <h2 class="text-xl font-semibold text-primary flex items-center gap-2">
+                        <span>🌀 TELEIOS-VORTEX FELD</span>
+                    </h2>
+                    <span id="zenBadge" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-zen/20 text-zen border border-zen/40 animate-pulse">
+                        🧘 ZEN-ENTSPANNUNG AKTIV
+                    </span>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <button id="toggleZenMode" class="px-4 py-1.5 bg-zen/20 hover:bg-zen/30 border border-zen/50 text-zen rounded-xl text-sm font-medium transition-all flex items-center gap-2">
+                        <span>🧘🏼‍♀️ Entspannungs-Modus</span>
+                    </button>
+                    <button id="regenerateVortex" class="px-4 py-1.5 bg-primary hover:bg-primary/90 text-white rounded-xl text-sm font-medium transition-colors">
+                        🌀 Regenerieren
+                    </button>
+                </div>
+            </div>
+            
+            <div id="vortexTeleiosContainer" class="vortex-container h-[550px] md:h-[650px] relative transition-all duration-500">
+                <div id="loading" class="absolute inset-0 flex items-center justify-center bg-void/80 z-10">
+                    <div class="text-center">
+                        <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto mb-3"></div>
+                        <p class="text-lg">Initialisiere TELEIOS-Vortex-Struktur & Leucht-Nodes...</p>
+                    </div>
+                </div>
+
+                <!-- Overlay Breathing Indicator in Zen Mode -->
+                <div id="breathingGuide" class="hidden absolute top-4 left-1/2 -translate-x-1/2 bg-void/60 backdrop-blur-md px-6 py-2 rounded-full border border-zen/30 text-zen text-sm font-medium text-center z-20 transition-all">
+                    <span id="breathText">Einatmen...</span>
+                </div>
+            </div>
+
+            <!-- Quick View Controls Below Canvas -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                <div class="bg-gray-900/40 p-3 rounded-xl border border-gray-700/30">
+                    <h3 class="text-xs uppercase tracking-wider font-semibold text-gray-400 mb-2">Vortex-Modus</h3>
+                    <div class="flex flex-wrap gap-2">
+                        <button id="modeClassic" class="px-3 py-1 bg-primary text-white hover:bg-primary/90 rounded-lg text-sm transition-all">
+                            Klassischer Vortex
+                        </button>
+                        <button id="modeTeleios" class="px-3 py-1 bg-primary/20 hover:bg-primary/30 rounded-lg border border-primary/40 text-sm transition-all">
+                            TELEIOS-Fusion
+                        </button>
+                        <button id="modeHybrid" class="px-3 py-1 bg-primary/20 hover:bg-primary/30 rounded-lg border border-primary/40 text-sm transition-all">
+                            Hybrid
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="bg-gray-900/40 p-3 rounded-xl border border-gray-700/30">
+                    <h3 class="text-xs uppercase tracking-wider font-semibold text-gray-400 mb-2">Feld-Visualisierung & Effekte</h3>
+                    <div class="flex flex-wrap gap-2">
+                        <button id="showKerrNodes" class="px-3 py-1 bg-spin text-white hover:bg-spin/90 rounded-lg text-sm transition-all">
+                            ✨ Kerr-Nodes Glow
+                        </button>
+                        <button id="showTeleiosSphere" class="px-3 py-1 bg-drift text-white hover:bg-drift/90 rounded-lg text-sm transition-all">
+                            🌐 TELEIOS-Sphäre
+                        </button>
+                        <button id="showDriftField" class="px-3 py-1 bg-plasma text-white hover:bg-plasma/90 rounded-lg text-sm transition-all">
+                            🌌 Drift-Feld
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Control Panel Positioned BELOW Vortex (3-Column Layout) -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            <!-- Column 1: Frequenz & Entspannung -->
+            <div class="bg-gray-800/30 rounded-xl p-5 cosmic-shadow border border-gray-700/50">
+                <h2 class="text-lg font-semibold mb-4 text-zen flex items-center gap-2">
+                    <span>🧘🏼 Entspannung & Pulsation</span>
+                </h2>
+                
+                <div class="space-y-4">
+                    <!-- Breathing Pulse Toggle -->
+                    <div class="bg-gray-900/40 p-3 rounded-xl border border-gray-700/30 flex items-center justify-between">
+                        <div>
+                            <div class="text-sm font-medium text-gray-200">Atem-Pulsieren</div>
+                            <div class="text-xs text-gray-400">Harmonische Feld-Expansion</div>
+                        </div>
+                        <input type="checkbox" id="breathingToggle" checked class="w-5 h-5 accent-zen cursor-pointer">
+                    </div>
+
+                    <!-- Rotation Speed Slider -->
+                    <div>
+                        <label for="rotationSpeed" class="block mb-1 text-sm font-medium">Rotations-Geschwindigkeit</label>
+                        <input type="range" id="rotationSpeed" min="0.1" max="2.0" step="0.1" value="0.5" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                        <div class="flex justify-between text-xs mt-1 text-gray-400">
+                            <span>Sanft / Meditation</span>
+                            <span id="rotationSpeedValue" class="text-zen font-mono">0.5x</span>
+                            <span>Dynamisch</span>
+                        </div>
+                    </div>
+
+                    <!-- Frequency Presets -->
+                    <div>
+                        <label class="block mb-2 text-sm font-medium">Frequenz-Presets</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button id="presetGabi" class="px-2.5 py-1.5 bg-primary/20 hover:bg-primary/40 border border-primary/50 text-white rounded-lg text-xs font-mono transition-all">
+                                41.36 Hz (GABI)
+                            </button>
+                            <button id="presetSolfeggio" class="px-2.5 py-1.5 bg-phi/20 hover:bg-phi/40 border border-phi/50 text-white rounded-lg text-xs font-mono transition-all">
+                                432 Hz (Solfeggio)
+                            </button>
+                            <button id="presetSchumann" class="px-2.5 py-1.5 bg-zen/20 hover:bg-zen/40 border border-zen/50 text-white rounded-lg text-xs font-mono transition-all">
+                                7.83 Hz (Schumann)
+                            </button>
+                            <button id="presetTheta" class="px-2.5 py-1.5 bg-drift/20 hover:bg-drift/40 border border-drift/50 text-white rounded-lg text-xs font-mono transition-all">
+                                4.0 Hz (Theta)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Column 2: Parameters -->
+            <div class="bg-gray-800/30 rounded-xl p-5 cosmic-shadow border border-gray-700/50">
+                <h2 class="text-lg font-semibold mb-4 text-primary">Vereinigte Feld-Parameter</h2>
+                
+                <div class="space-y-4">
+                    <!-- GABI Drift Frequency -->
+                    <div>
+                        <label for="gabiFreq" class="block mb-1 text-sm font-medium">GABI-Driftfrequenz (ΔΦ)</label>
+                        <input type="range" id="gabiFreq" min="1" max="50" step="0.1" value="41.36" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                        <div class="flex justify-between text-xs mt-1 text-gray-400">
+                            <span>1 Hz</span>
+                            <span id="gabiFreqValue" class="text-phi font-mono">41.36 Hz</span>
+                            <span>50 Hz</span>
+                        </div>
+                    </div>
+
+                    <!-- Eta Coupling -->
+                    <div>
+                        <label for="etaCoupling" class="block mb-1 text-sm font-medium">η-Kopplung (Tunnel)</label>
+                        <input type="range" id="etaCoupling" min="0.3" max="0.9" step="0.01" value="0.54" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                        <div class="flex justify-between text-xs mt-1 text-gray-400">
+                            <span>0.3</span>
+                            <span id="etaCouplingValue" class="text-drift font-mono">0.54</span>
+                            <span>0.9</span>
+                        </div>
+                    </div>
+
+                    <!-- Phi Resonance -->
+                    <div>
+                        <label for="phiResonance" class="block mb-1 text-sm font-medium">Φ-Resonanz (Goldener Schnitt)</label>
+                        <input type="range" id="phiResonance" min="0" max="100" value="61.8" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                        <div class="flex justify-between text-xs mt-1 text-gray-400">
+                            <span>0%</span>
+                            <span id="phiResonanceValue" class="text-phi font-mono">61.8%</span>
+                            <span>100%</span>
+                        </div>
+                    </div>
+
+                    <!-- Particle Density -->
+                    <div>
+                        <label for="particleDensity" class="block mb-1 text-sm font-medium">Partikel- / Node-Dichte</label>
+                        <input type="range" id="particleDensity" min="500" max="3000" value="1500" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                        <div class="flex justify-between text-xs mt-1 text-gray-400">
+                            <span>500</span>
+                            <span id="particleDensityValue" class="text-spin font-mono">1500</span>
+                            <span>3000</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Column 3: Portal & Node Status -->
+            <div class="bg-gray-800/30 rounded-xl p-5 cosmic-shadow border border-gray-700/50 flex flex-col justify-between">
+                <div>
+                    <h2 class="text-lg font-semibold mb-4 text-spin">Portal- & Leucht-Status</h2>
+                    
+                    <div class="bg-gray-900/40 p-4 rounded-xl border border-gray-700/30 mb-4">
+                        <div class="grid grid-cols-2 gap-2 text-center mb-3">
+                            <div class="p-2 bg-void/50 rounded-lg">
+                                <div class="text-xl font-bold text-zen" id="portalStatus">HARMONISCH</div>
+                                <div class="text-[10px] uppercase text-gray-400 tracking-wider">Portal-Feld</div>
+                            </div>
+                            <div class="p-2 bg-void/50 rounded-lg">
+                                <div class="text-xl font-bold text-spin" id="activeNodes">0</div>
+                                <div class="text-[10px] uppercase text-gray-400 tracking-wider">Leucht-Nodes</div>
+                            </div>
+                        </div>
+
+                        <div class="space-y-1 text-xs text-gray-300 font-mono">
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">GABI-Resonanz:</span>
+                                <span id="gabiResonance" class="text-zen">Aktiv (41.36 Hz)</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">TELEIOS-Feld:</span>
+                                <span id="teleiosField" class="text-drift">Harmonisch</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">Φ-Harmonie:</span>
+                                <span id="phiHarmony" class="text-phi">1.618033 (Optimal)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-gray-900/30 p-3 rounded-xl border border-gray-700/30">
+                    <h3 class="text-xs font-semibold text-phi mb-1">💡 Leuchtende Kerr-Nodes</h3>
+                    <p class="text-xs text-gray-400 leading-relaxed">
+                        Die Kerr-Nodes sind als strahlende Energieknoten konstruiert. Im Entspannungs-Modus pulsieren sie im 4-7-8 Atemrhythmus.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Theory & Science Panel -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <div class="bg-gray-800/30 rounded-xl p-5 cosmic-shadow border border-gray-700/50">
+                <h2 class="text-lg font-semibold mb-3 text-phi">Vereinigte Feldtheorie & Frequenzen</h2>
+                
+                <div class="space-y-3 text-xs text-gray-300">
+                    <div class="bg-gray-900/30 p-3 rounded-lg border border-gray-800">
+                        <div class="font-medium text-white mb-1">GABI-TELEIOS Fusion</div>
+                        <div>ψₙ₊₁(t) = η(z)·Ψₙ(t)·e^(i·2π·ΔΦ·t) ⊗ φ_TELEIOS(r)</div>
+                        <div class="text-gray-400 mt-1">Gekoppelt mit der 114. Zeta-Nullstelle (t₁₁₄ / 2π = 41.36 Hz).</div>
+                    </div>
+                    
+                    <div class="bg-gray-900/30 p-3 rounded-lg border border-gray-800">
+                        <div class="font-medium text-white mb-1">Leuchtende Knoten & Goldener Schnitt</div>
+                        <div>Die Schwellenwerte der Kerr-Nodes skalieren mit der Fibonacci-Progression. Der Entspannungsmodus dämpft hochfrequentes Flackern auf eine fließende Sinus-Atemkurve.</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-gray-800/30 rounded-xl p-5 cosmic-shadow border border-gray-700/50">
+                <h2 class="text-lg font-semibold mb-3 text-primary">Astrophysikalischer Rahmen</h2>
+                
+                <div class="space-y-3 text-xs text-gray-300">
+                    <div class="bg-gray-900/30 p-3 rounded-lg border border-gray-800">
+                        <div class="font-medium text-white mb-1">TELEIOS (G305.4–2.2) als Portal-Struktur</div>
+                        <div>Symmetrische Sphäre mit kreisförmigen Nicht-Thermischen Wellenmustern – ideal als Entspannungs- und Visualisierungs-Anker.</div>
+                    </div>
+                    
+                    <div class="bg-gray-900/30 p-3 rounded-lg border border-gray-800">
+                        <div class="font-medium text-white mb-1">Resonanz-Wirkungsgrad</div>
+                        <div>Das Zusammenspiel von visueller Drehung und sanfter Atmungs-Anpassung unterstützt tiefe Meditation und mentale Fokussierung.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="text-center text-gray-500 pt-6 pb-4">
+            <div class="mb-3 flex justify-center">
+                <div class="w-12 h-12 text-3xl flex items-center justify-center text-phi font-light relative phi-pulse">
+                    Φ
+                </div>
+            </div>
+            <p class="text-xs text-gray-400">GDEΦKERR TELEIOSΦGABI Unified Model & Relaxation Engine</p>
+            <p class="mt-1 text-[11px] text-gray-500">Pulsar Konstrukteur Gabriel - 41.36 Hz GABI × TELEIOS Fusion</p>
+        </footer>
+    </div>
+
+    <script>
+        // =============================================================================
+        // TELEIOSΦGABI VORTEX-PASSAGE - RELAXATION & GLOWING NODES ENGINE
+        // =============================================================================
+        
+        const GOLDEN_RATIO = (1 + Math.sqrt(5)) / 2;
+        
+        function waitForThreeJS() {
+            return new Promise((resolve) => {
+                if (typeof THREE !== 'undefined') {
+                    resolve();
+                } else {
+                    setTimeout(() => waitForThreeJS().then(resolve), 100);
+                }
+            });
+        }
+        
+        class TeleiosVortex {
+            constructor() {
+                this.initializeSystem();
+            }
+            
+            async initializeSystem() {
+                try {
+                    await waitForThreeJS();
+                    
+                    this.initializeThreeJS();
+                    this.setupParameters();
+                    this.createUnifiedStructure();
+                    this.setupControls();
+                    this.animate();
+                    
+                    console.log('🌀 TELEIOS-Vortex mit leuchtenden Nodes initialisiert!');
+                } catch (error) {
+                    console.error('❌ Fehler bei Initialisierung:', error);
+                    const loading = document.getElementById('loading');
+                    if (loading) {
+                        loading.innerHTML = `
+                            <div class="text-center">
+                                <p class="text-red-400 text-lg">Fehler beim Laden</p>
+                                <p class="text-sm">${error.message}</p>
+                            </div>
+                        `;
+                    }
+                }
+            }
+            
+            initializeThreeJS() {
+                if (!THREE) {
+                    throw new Error('Three.js nicht verfügbar');
+                }
+                
+                // Scene
+                this.scene = new THREE.Scene();
+                this.scene.fog = new THREE.FogExp2(0x000025, 0.015);
+                
+                // Camera
+                this.camera = new THREE.PerspectiveCamera(65, 1, 0.1, 1000);
+                this.camera.position.set(0, 18, 30);
+                this.camera.lookAt(0, 0, 0);
+                
+                // Renderer
+                const container = document.getElementById('vortexTeleiosContainer');
+                if (!container) throw new Error('Container nicht gefunden');
+                
+                this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+                this.renderer.setSize(container.clientWidth, container.clientHeight);
+                this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+                this.renderer.setClearColor(0x000025, 1);
+                
+                container.appendChild(this.renderer.domElement);
+                
+                // Dynamic Lighting for Glow
+                const ambientLight = new THREE.AmbientLight(0x1a1a40, 0.6);
+                this.scene.add(ambientLight);
+                
+                this.corePointLight = new THREE.PointLight(0x5D5CDE, 3, 120);
+                this.corePointLight.position.set(0, 0, 0);
+                this.scene.add(this.corePointLight);
+                
+                this.phiLight = new THREE.PointLight(0xD4AF37, 2, 80);
+                this.phiLight.position.set(0, 5, 0);
+                this.scene.add(this.phiLight);
+
+                // Handle Resizing
+                window.addEventListener('resize', () => {
+                    if (!container || !this.renderer || !this.camera) return;
+                    const w = container.clientWidth;
+                    const h = container.clientHeight;
+                    this.camera.aspect = w / h;
+                    this.camera.updateProjectionMatrix();
+                    this.renderer.setSize(w, h);
+                });
+                
+                this.setupCameraControls();
+            }
+            
+            setupCameraControls() {
+                let isDragging = false;
+                let previousMousePosition = { x: 0, y: 0 };
+                let cameraDistance = this.camera.position.length();
+                let cameraPhi = Math.acos(this.camera.position.y / cameraDistance);
+                let cameraTheta = Math.atan2(this.camera.position.z, this.camera.position.x);
+                
+                const canvas = this.renderer.domElement;
+                
+                canvas.addEventListener('mousedown', (event) => {
+                    isDragging = true;
+                    previousMousePosition = { x: event.clientX, y: event.clientY };
+                });
+                
+                canvas.addEventListener('mousemove', (event) => {
+                    if (!isDragging) return;
+                    
+                    const deltaMove = {
+                        x: event.clientX - previousMousePosition.x,
+                        y: event.clientY - previousMousePosition.y
+                    };
+                    
+                    cameraTheta -= deltaMove.x * 0.008;
+                    cameraPhi = Math.max(0.1, Math.min(Math.PI - 0.1, cameraPhi + deltaMove.y * 0.008));
+                    
+                    this.camera.position.x = cameraDistance * Math.sin(cameraPhi) * Math.cos(cameraTheta);
+                    this.camera.position.y = cameraDistance * Math.cos(cameraPhi);
+                    this.camera.position.z = cameraDistance * Math.sin(cameraPhi) * Math.sin(cameraTheta);
+                    
+                    this.camera.lookAt(0, 0, 0);
+                    previousMousePosition = { x: event.clientX, y: event.clientY };
+                });
+                
+                canvas.addEventListener('mouseup', () => isDragging = false);
+                canvas.addEventListener('mouseleave', () => isDragging = false);
+                
+                canvas.addEventListener('wheel', (event) => {
+                    event.preventDefault();
+                    cameraDistance = Math.max(12, Math.min(90, cameraDistance + event.deltaY * 0.08));
+                    
+                    this.camera.position.x = cameraDistance * Math.sin(cameraPhi) * Math.cos(cameraTheta);
+                    this.camera.position.y = cameraDistance * Math.cos(cameraPhi);
+                    this.camera.position.z = cameraDistance * Math.sin(cameraPhi) * Math.sin(cameraTheta);
+                    this.camera.lookAt(0, 0, 0);
+                }, { passive: false });
+            }
+            
+            setupParameters() {
+                this.gabiFreq = 41.36;
+                this.etaCoupling = 0.54;
+                this.teleioDiameter = 156;
+                this.phiResonance = 61.8;
+                this.particleDensity = 1500;
+                
+                this.rotationSpeed = 0.5;
+                this.isZenMode = false;
+                this.isBreathing = true;
+                
+                this.time = 0;
+                this.breathCycle = 0;
+                
+                this.mode = 'classic';
+                this.showKerrNodes = true;
+                this.showTeleiosSphere = true;
+                this.showDriftField = true;
+                
+                this.vortexGroup = new THREE.Group();
+                this.teleiosGroup = new THREE.Group();
+                this.kerrNodes = [];
+                this.psiRings = [];
+                this.teleiosParticles = null;
+                this.driftField = [];
+                
+                this.scene.add(this.vortexGroup);
+                this.scene.add(this.teleiosGroup);
+            }
+            
+            createUnifiedStructure() {
+                this.clearStructures();
+                
+                if (this.mode === 'classic' || this.mode === 'hybrid') {
+                    this.createVortexStructure();
+                }
+                
+                if (this.mode === 'teleios' || this.mode === 'hybrid') {
+                    this.createTeleiosStructure();
+                }
+                
+                if (this.mode === 'hybrid') {
+                    this.createFusionElements();
+                }
+            }
+            
+            clearStructures() {
+                while (this.vortexGroup.children.length > 0) {
+                    const obj = this.vortexGroup.children[0];
+                    this.vortexGroup.remove(obj);
+                }
+                while (this.teleiosGroup.children.length > 0) {
+                    const obj = this.teleiosGroup.children[0];
+                    this.teleiosGroup.remove(obj);
+                }
+                
+                this.kerrNodes = [];
+                this.psiRings = [];
+                this.driftField = [];
+                this.teleiosParticles = null;
+            }
+            
+            createVortexStructure() {
+                const layers = 12;
+                const baseRadius = this.teleioDiameter / 18;
+                
+                for (let n = 1; n <= layers; n++) {
+                    this.createPsiRing(n, baseRadius);
+                    this.createKerrNodesForLayer(n, baseRadius);
+                }
+                
+                this.createVortexCore();
+            }
+            
+            createPsiRing(n, baseRadius) {
+                const radius = baseRadius + n * 1.35;
+                const phiFactor = this.phiResonance / 100;
+                const adjustedRadius = radius * (1 + phiFactor * (Math.pow(GOLDEN_RATIO, n/5) - 1) * 0.12);
+                
+                const geometry = new THREE.RingGeometry(adjustedRadius - 0.25, adjustedRadius + 0.25, 48);
+                
+                const ringColor = new THREE.Color().setHSL((n * 0.08 + 0.55) % 1, 0.85, 0.6);
+                const material = new THREE.MeshBasicMaterial({
+                    color: ringColor,
+                    transparent: true,
+                    opacity: 0.65,
+                    side: THREE.DoubleSide
+                });
+                
+                const ring = new THREE.Mesh(geometry, material);
+                ring.rotation.x = Math.PI / 2;
+                ring.position.y = (n - 6) * 0.75;
+                ring.userData = { 
+                    layer: n, 
+                    baseRadius: adjustedRadius,
+                    baseY: (n - 6) * 0.75,
+                    baseOpacity: 0.65
+                };
+                
+                this.vortexGroup.add(ring);
+                this.psiRings.push(ring);
+            }
+            
+            // Glowing Nodes Creation
+            createKerrNodesForLayer(n, baseRadius) {
+                const radius = baseRadius + n * 1.35;
+                const phiFactor = this.phiResonance / 100;
+                const adjustedRadius = radius * (1 + phiFactor * (Math.pow(GOLDEN_RATIO, n/5) - 1) * 0.12);
+                
+                const fibSeq = [1, 2, 3, 5, 8, 13, 21, 34, 55, 89];
+                const baseCount = Math.floor(this.particleDensity / 180);
+                const nodeCount = Math.max(6, Math.floor(baseCount * (fibSeq[Math.min(n-1, fibSeq.length-1)] / 12)));
+                
+                const layerNodes = [];
+                
+                for (let i = 0; i < nodeCount; i++) {
+                    const angle = (Math.PI * 2 / nodeCount) * i;
+                    const nodeSize = 0.22 * (1 + phiFactor * 0.4);
+                    
+                    const geometry = new THREE.SphereGeometry(nodeSize, 16, 16);
+                    
+                    // High Emissive Material for Intense Glow
+                    const material = new THREE.MeshStandardMaterial({
+                        color: n % 2 === 0 ? 0xD4AF37 : 0x3B82F6,
+                        emissive: n % 2 === 0 ? 0xF59E0B : 0x5D5CDE,
+                        emissiveIntensity: 1.8,
+                        roughness: 0.2,
+                        metalness: 0.8
+                    });
+                    
+                    const node = new THREE.Mesh(geometry, material);
+                    node.position.x = adjustedRadius * Math.cos(angle);
+                    node.position.z = adjustedRadius * Math.sin(angle);
+                    node.position.y = (n - 6) * 0.75;
+                    
+                    node.userData = {
+                        layer: n,
+                        angle: angle,
+                        radius: adjustedRadius,
+                        baseY: (n - 6) * 0.75,
+                        baseScale: 1,
+                        pulsePhase: i * 0.3 + n * 0.5
+                    };
+                    
+                    this.vortexGroup.add(node);
+                    layerNodes.push(node);
+                }
+                
+                this.kerrNodes.push(layerNodes);
+            }
+            
+            createVortexCore() {
+                const coreRadius = 2.0 * (1 + this.phiResonance / 200);
+                const geometry = new THREE.IcosahedronGeometry(coreRadius, 3);
+                
+                const material = new THREE.MeshStandardMaterial({
+                    color: 0x5D5CDE,
+                    emissive: 0x3B82F6,
+                    emissiveIntensity: 2.2,
+                    wireframe: true,
+                    transparent: true,
+                    opacity: 0.85
+                });
+                
+                this.vortexCore = new THREE.Mesh(geometry, material);
+                this.vortexGroup.add(this.vortexCore);
+            }
+            
+            createTeleiosStructure() {
+                const radius = this.teleioDiameter / 9;
+                
+                // Outer Sphere
+                const geometry = new THREE.SphereGeometry(radius, 48, 48);
+                const material = new THREE.MeshStandardMaterial({
+                    color: 0x5D5CDE,
+                    emissive: 0x10B981,
+                    emissiveIntensity: 0.4,
+                    transparent: true,
+                    opacity: 0.25,
+                    wireframe: true
+                });
+                
+                this.teleiosSphere = new THREE.Mesh(geometry, material);
+                this.teleiosGroup.add(this.teleiosSphere);
+                
+                this.createDriftParticles();
+            }
+            
+            createDriftParticles() {
+                const particleCount = Math.floor(this.particleDensity);
+                const sphereRadius = this.teleioDiameter / 9;
+                
+                const positions = [];
+                const colors = [];
+                
+                for (let i = 0; i < particleCount; i++) {
+                    const theta = Math.random() * Math.PI * 2;
+                    const sphericalPhi = Math.acos(2 * Math.random() - 1);
+                    const r = sphereRadius * Math.cbrt(Math.random());
+                    
+                    const x = r * Math.sin(sphericalPhi) * Math.cos(theta);
+                    const y = r * Math.sin(sphericalPhi) * Math.sin(theta);
+                    const z = r * Math.cos(sphericalPhi);
+                    
+                    positions.push(x, y, z);
+                    
+                    const ratio = r / sphereRadius;
+                    if (ratio < 0.4) {
+                        colors.push(0.83, 0.69, 0.22); // Phi Gold
+                    } else if (ratio < 0.7) {
+                        colors.push(0.23, 0.51, 0.96); // Drift Blue
+                    } else {
+                        colors.push(0.06, 0.72, 0.51); // Zen Green
+                    }
+                }
+                
+                const geometry = new THREE.BufferGeometry();
+                geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+                geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+                
+                const material = new THREE.PointsMaterial({
+                    size: 1.2,
+                    vertexColors: true,
+                    transparent: true,
+                    opacity: 0.75
+                });
+                
+                this.teleiosParticles = new THREE.Points(geometry, material);
+                this.teleiosGroup.add(this.teleiosParticles);
+            }
+            
+            createFusionElements() {
+                const points = [];
+                const spiralSteps = 120;
+                const maxRadius = this.teleioDiameter / 9;
+                
+                for (let i = 0; i < spiralSteps; i++) {
+                    const t = i / spiralSteps;
+                    const r = maxRadius * t;
+                    const angle = t * Math.PI * 6 * GOLDEN_RATIO;
+                    const height = (t - 0.5) * maxRadius * 0.8;
+                    
+                    points.push(new THREE.Vector3(r * Math.cos(angle), height, r * Math.sin(angle)));
+                }
+                
+                const geometry = new THREE.BufferGeometry().setFromPoints(points);
+                const material = new THREE.LineBasicMaterial({
+                    color: 0xD4AF37,
+                    transparent: true,
+                    opacity: 0.6
+                });
+                
+                const spiral = new THREE.Line(geometry, material);
+                this.teleiosGroup.add(spiral);
+            }
+            
+            setupControls() {
+                // Zen Mode Toggle
+                const zenBtn = document.getElementById('toggleZenMode');
+                if (zenBtn) {
+                    zenBtn.addEventListener('click', () => this.toggleZenMode());
+                }
+
+                // Breathing Toggle
+                const breathToggle = document.getElementById('breathingToggle');
+                if (breathToggle) {
+                    breathToggle.addEventListener('change', (e) => {
+                        this.isBreathing = e.target.checked;
+                    });
+                }
+
+                // Speed Slider
+                const speedSlider = document.getElementById('rotationSpeed');
+                if (speedSlider) {
+                    speedSlider.addEventListener('input', () => {
+                        this.rotationSpeed = parseFloat(speedSlider.value);
+                        const display = document.getElementById('rotationSpeedValue');
+                        if (display) display.textContent = `${this.rotationSpeed.toFixed(1)}x`;
+                    });
+                }
+
+                // GABI Frequency
+                const gabiSlider = document.getElementById('gabiFreq');
+                if (gabiSlider) {
+                    gabiSlider.addEventListener('input', () => {
+                        this.gabiFreq = parseFloat(gabiSlider.value);
+                        const display = document.getElementById('gabiFreqValue');
+                        if (display) display.textContent = `${this.gabiFreq.toFixed(2)} Hz`;
+                        const statusGabi = document.getElementById('gabiResonance');
+                        if (statusGabi) statusGabi.textContent = `Aktiv (${this.gabiFreq.toFixed(2)} Hz)`;
+                    });
+                }
+
+                // Eta Coupling
+                const etaSlider = document.getElementById('etaCoupling');
+                if (etaSlider) {
+                    etaSlider.addEventListener('input', () => {
+                        this.etaCoupling = parseFloat(etaSlider.value);
+                        const display = document.getElementById('etaCouplingValue');
+                        if (display) display.textContent = this.etaCoupling.toFixed(2);
+                    });
+                }
+
+                // Phi Resonance
+                const phiSlider = document.getElementById('phiResonance');
+                if (phiSlider) {
+                    phiSlider.addEventListener('input', () => {
+                        this.phiResonance = parseFloat(phiSlider.value);
+                        const display = document.getElementById('phiResonanceValue');
+                        if (display) display.textContent = `${this.phiResonance.toFixed(1)}%`;
+                    });
+                }
+
+                // Density Slider
+                const densitySlider = document.getElementById('particleDensity');
+                if (densitySlider) {
+                    densitySlider.addEventListener('input', () => {
+                        this.particleDensity = parseInt(densitySlider.value);
+                        const display = document.getElementById('particleDensityValue');
+                        if (display) display.textContent = this.particleDensity;
+                    });
+                }
+
+                // Presets
+                document.getElementById('presetGabi')?.addEventListener('click', () => this.setPreset(41.36, 0.5));
+                document.getElementById('presetSolfeggio')?.addEventListener('click', () => this.setPreset(432.0, 0.3));
+                document.getElementById('presetSchumann')?.addEventListener('click', () => this.setPreset(7.83, 0.2));
+                document.getElementById('presetTheta')?.addEventListener('click', () => this.setPreset(4.0, 0.2));
+
+                // Modes
+                document.getElementById('modeClassic')?.addEventListener('click', () => this.setMode('classic'));
+                document.getElementById('modeTeleios')?.addEventListener('click', () => this.setMode('teleios'));
+                document.getElementById('modeHybrid')?.addEventListener('click', () => this.setMode('hybrid'));
+
+                // Vis Toggles
+                document.getElementById('showKerrNodes')?.addEventListener('click', () => {
+                    this.showKerrNodes = !this.showKerrNodes;
+                    this.kerrNodes.flat().forEach(node => node.visible = this.showKerrNodes);
+                });
+                document.getElementById('showTeleiosSphere')?.addEventListener('click', () => {
+                    this.showTeleiosSphere = !this.showTeleiosSphere;
+                    if (this.teleiosSphere) this.teleiosSphere.visible = this.showTeleiosSphere;
+                });
+                document.getElementById('showDriftField')?.addEventListener('click', () => {
+                    this.showDriftField = !this.showDriftField;
+                    if (this.teleiosParticles) this.teleiosParticles.visible = this.showDriftField;
+                });
+
+                // Regenerate
+                document.getElementById('regenerateVortex')?.addEventListener('click', () => this.createUnifiedStructure());
+            }
+
+            setPreset(freq, speed) {
+                this.gabiFreq = freq;
+                this.rotationSpeed = speed;
+                
+                const gabiSlider = document.getElementById('gabiFreq');
+                if (gabiSlider) gabiSlider.value = freq;
+                const gabiValue = document.getElementById('gabiFreqValue');
+                if (gabiValue) gabiValue.textContent = `${freq.toFixed(2)} Hz`;
+
+                const speedSlider = document.getElementById('rotationSpeed');
+                if (speedSlider) speedSlider.value = speed;
+                const speedValue = document.getElementById('rotationSpeedValue');
+                if (speedValue) speedValue.textContent = `${speed.toFixed(1)}x`;
+
+                this.createUnifiedStructure();
+            }
+
+            setMode(newMode) {
+                this.mode = newMode;
+                this.createUnifiedStructure();
+            }
+
+            toggleZenMode() {
+                this.isZenMode = !this.isZenMode;
+                
+                const card = document.getElementById('vortexCard');
+                const badge = document.getElementById('zenBadge');
+                const guide = document.getElementById('breathingGuide');
+                
+                if (this.isZenMode) {
+                    card?.classList.add('zen-glow');
+                    badge?.classList.remove('hidden');
+                    guide?.classList.remove('hidden');
+                    this.rotationSpeed = 0.2;
+                    const speedSlider = document.getElementById('rotationSpeed');
+                    if (speedSlider) speedSlider.value = 0.2;
+                    const speedVal = document.getElementById('rotationSpeedValue');
+                    if (speedVal) speedVal.textContent = '0.2x';
+                } else {
+                    card?.classList.remove('zen-glow');
+                    badge?.classList.add('hidden');
+                    guide?.classList.add('hidden');
+                    this.rotationSpeed = 0.5;
+                    const speedSlider = document.getElementById('rotationSpeed');
+                    if (speedSlider) speedSlider.value = 0.5;
+                    const speedVal = document.getElementById('rotationSpeedValue');
+                    if (speedVal) speedVal.textContent = '0.5x';
+                }
+            }
+
+            animate() {
+                requestAnimationFrame(() => this.animate());
+                
+                const delta = 0.016 * this.rotationSpeed;
+                this.time += delta;
+                
+                // Breathing Pulse Cycle (6 breaths per minute = ~10s per cycle)
+                this.breathCycle += 0.012;
+                const breathFactor = Math.sin(this.breathCycle); // Range -1 to +1
+                const breathScale = 1 + (this.isBreathing ? breathFactor * 0.08 : 0);
+
+                // Update Breathing Text
+                const breathText = document.getElementById('breathText');
+                if (breathText && this.isZenMode) {
+                    if (breathFactor > 0.2) {
+                        breathText.textContent = '💨 Ausatmen... (Feld dehnt sich aus)';
+                    } else if (breathFactor < -0.2) {
+                        breathText.textContent = '🫁 Einatmen... (Feld zieht sich zusammen)';
+                    } else {
+                        breathText.textContent = '☯️ Innehalten / Balance';
+                    }
+                }
+
+                // Rotate & Pulse Core
+                if (this.vortexCore) {
+                    this.vortexCore.rotation.y += delta * 0.8;
+                    this.vortexCore.rotation.z += delta * 0.3;
+                    this.vortexCore.scale.set(breathScale, breathScale, breathScale);
+                }
+
+                // Animate Glowing Kerr-Nodes
+                let activeCount = 0;
+                this.kerrNodes.forEach((layer, layerIdx) => {
+                    layer.forEach((node) => {
+                        node.userData.angle += delta * (0.4 + layerIdx * 0.05);
+                        const r = node.userData.radius * breathScale;
+                        
+                        node.position.x = r * Math.cos(node.userData.angle);
+                        node.position.z = r * Math.sin(node.userData.angle);
+                        
+                        // Node Glow Pulse
+                        const nodePulse = Math.sin(this.time * 3 + node.userData.pulsePhase) * 0.4 + 1.2;
+                        node.material.emissiveIntensity = nodePulse * (this.isZenMode ? 1.2 : 2.0);
+                        
+                        activeCount++;
+                    });
+                });
+
+                // Animate Psi Rings Breathing
+                this.psiRings.forEach((ring) => {
+                    ring.rotation.z += delta * 0.2;
+                    ring.scale.set(breathScale, breathScale, breathScale);
+                });
+
+                // Teleios Sphere Rotation
+                if (this.teleiosSphere) {
+                    this.teleiosSphere.rotation.y += delta * 0.2;
+                }
+
+                if (this.teleiosParticles) {
+                    this.teleiosParticles.rotation.y += delta * 0.15;
+                }
+
+                // Light Pulsing
+                if (this.corePointLight) {
+                    this.corePointLight.intensity = 2.5 + breathFactor * 0.8;
+                }
+
+                // Update Status
+                const activeNodesEl = document.getElementById('activeNodes');
+                if (activeNodesEl) activeNodesEl.textContent = activeCount;
+
+                this.renderer.render(this.scene, this.camera);
+            }
+        }
+
+        function setupParticles() {
+            const canvas = document.getElementById('particleCanvas');
+            if (!canvas) return;
+            
+            const ctx = canvas.getContext('2d');
+            
+            function resize() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+            resize();
+            window.addEventListener('resize', resize);
+            
+            const particles = [];
+            const count = 150;
+            
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    radius: Math.random() * 1.8 + 0.4,
+                    color: i % 3 === 0 ? 'rgba(93, 92, 222, 0.25)' : 
+                           i % 3 === 1 ? 'rgba(212, 175, 55, 0.2)' : 'rgba(16, 185, 129, 0.2)',
+                    vx: (Math.random() - 0.5) * 0.12,
+                    vy: (Math.random() - 0.5) * 0.12
+                });
+            }
+            
+            function render() {
+                requestAnimationFrame(render);
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                particles.forEach(p => {
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    
+                    if (p.x < 0) p.x = canvas.width;
+                    if (p.x > canvas.width) p.x = 0;
+                    if (p.y < 0) p.y = canvas.height;
+                    if (p.y > canvas.height) p.y = 0;
+                    
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = p.color;
+                    ctx.fill();
+                });
+            }
+            render();
+        }
+
+        function setupBrontosRadio() {
+            const STREAM_URL = 'https://ivm.antenaplay.ro/liveaudio/radiozu/playlist.m3u8';
+            const radio = document.getElementById('brontosRadio');
+            const audio = document.getElementById('radioAudio');
+            const playBtn = document.getElementById('radioPlay');
+            const volume = document.getElementById('radioVolume');
+            const percent = document.getElementById('radioPercent');
+            const status = document.getElementById('radioStatus');
+            const collapse = document.getElementById('radioCollapse');
+            if (!radio || !audio || !playBtn || !volume || !percent || !status || !collapse) return;
+
+            let hls = null;
+            let streamReady = false;
+
+            const setStatus = (text, state = '') => {
+                status.textContent = text;
+                status.className = `radio-status ${state}`.trim();
+            };
+
+            const prepareStream = () => {
+                if (streamReady) return;
+                setStatus('Verbinde mit Radio ZU …');
+
+                if (audio.canPlayType('application/vnd.apple.mpegurl')) {
+                    audio.src = STREAM_URL;
+                    streamReady = true;
+                    return;
+                }
+
+                if (window.Hls && Hls.isSupported()) {
+                    hls = new Hls({
+                        enableWorker: true,
+                        lowLatencyMode: false,
+                        backBufferLength: 30
+                    });
+                    hls.loadSource(STREAM_URL);
+                    hls.attachMedia(audio);
+                    hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                        streamReady = true;
+                        setStatus('Radio ZU verbunden · LIVE', 'ok');
+                    });
+                    hls.on(Hls.Events.ERROR, (_event, data) => {
+                        if (!data.fatal) return;
+                        if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+                            setStatus('Stream wird neu verbunden …');
+                            hls.startLoad();
+                        } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+                            setStatus('Audiostream wird repariert …');
+                            hls.recoverMediaError();
+                        } else {
+                            setStatus('Direktstream blockiert · ZU ↗ nutzen', 'error');
+                            hls.destroy();
+                            hls = null;
+                        }
+                    });
+                    return;
+                }
+
+                setStatus('Browser unterstützt den Stream nicht · ZU ↗', 'error');
+            };
+
+            const setPlayingUI = (playing) => {
+                radio.classList.toggle('is-playing', playing);
+                playBtn.textContent = playing ? '❚❚' : '▶';
+                playBtn.setAttribute('aria-label', playing ? 'Radio pausieren' : 'Radio starten');
+            };
+
+            playBtn.addEventListener('click', async () => {
+                if (!audio.paused) {
+                    audio.pause();
+                    setPlayingUI(false);
+                    setStatus('Pause · Radio ZU', '');
+                    return;
+                }
+
+                prepareStream();
+                try {
+                    await audio.play();
+                    setPlayingUI(true);
+                    setStatus('Radio ZU · LIVE', 'ok');
+                } catch (_error) {
+                    setPlayingUI(false);
+                    setStatus('Noch einmal PLAY drücken', 'error');
+                }
+            });
+
+            const savedVolume = Number(localStorage.getItem('brontosRadioVolume'));
+            if (Number.isFinite(savedVolume) && savedVolume >= 0 && savedVolume <= 100) {
+                volume.value = String(savedVolume);
+            }
+            audio.volume = Number(volume.value) / 100;
+            percent.textContent = `${volume.value}%`;
+
+            volume.addEventListener('input', () => {
+                audio.volume = Number(volume.value) / 100;
+                percent.textContent = `${volume.value}%`;
+                localStorage.setItem('brontosRadioVolume', volume.value);
+            });
+
+            collapse.addEventListener('click', () => {
+                const collapsed = radio.classList.toggle('is-collapsed');
+                collapse.textContent = collapsed ? '+' : '−';
+                collapse.setAttribute('aria-label', collapsed ? 'Radio ausklappen' : 'Radio einklappen');
+                collapse.title = collapsed ? 'Radio ausklappen' : 'Radio einklappen';
+            });
+
+            audio.addEventListener('playing', () => setPlayingUI(true));
+            audio.addEventListener('pause', () => setPlayingUI(false));
+            audio.addEventListener('waiting', () => setStatus('Radio ZU puffert …'));
+            audio.addEventListener('error', () => setStatus('Streamfehler · Radio ZU ↗', 'error'));
+        }
+
+        // Startup
+        document.addEventListener('DOMContentLoaded', () => {
+            setupParticles();
+            setupBrontosRadio();
+            
+            setTimeout(() => {
+                window.teleiosInstance = new TeleiosVortex();
+                
+                setTimeout(() => {
+                    const loading = document.getElementById('loading');
+                    if (loading) loading.style.display = 'none';
+                }, 1200);
+            }, 500);
+        });
+    </script>
+</body>
+</html>
